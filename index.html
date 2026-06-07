@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="我的衣櫃">
+<meta name="theme-color" content="#1a1a2e">
+<title>我的衣櫃</title>
+<style>
+:root {
+  --bg: #0f0f1a;
+  --card: #1a1a2e;
+  --card2: #16213e;
+  --accent: #e94560;
+  --accent2: #0f3460;
+  --text: #eee;
+  --text2: #aaa;
+  --border: #2a2a4a;
+  --success: #4ecca3;
+  --warning: #f0a500;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 100px; }
+
+/* Header */
+.header { background: var(--card); padding: 16px 16px 12px; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); }
+.header h1 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+
+/* Stats */
+.stats { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.stats::-webkit-scrollbar { display: none; }
+.stat { flex: 0 0 auto; background: var(--card2); border-radius: 10px; padding: 8px 12px; text-align: center; min-width: 60px; }
+.stat .num { font-size: 18px; font-weight: 700; color: var(--accent); }
+.stat .label { font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+/* Search */
+.search-row { padding: 12px 16px; display: flex; gap: 8px; align-items: center; }
+#searchInput { flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 15px; outline: none; }
+#searchInput:focus { border-color: var(--accent); }
+
+/* Filters */
+.filters { padding: 0 16px 12px; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.filters::-webkit-scrollbar { display: none; }
+.filter-btn { padding: 7px 14px; border-radius: 18px; border: 1px solid var(--border); background: var(--card2); color: var(--text2); font-size: 12px; white-space: nowrap; cursor: pointer; transition: all 0.2s; }
+.filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Grid */
+.grid { padding: 8px 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+/* Card */
+.card { background: var(--card); border-radius: 14px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; transition: transform 0.15s; }
+.card:active { transform: scale(0.97); }
+.card-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--card2); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.card-body { padding: 10px; }
+.card-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-meta { font-size: 11px; color: var(--text2); margin-top: 3px; }
+.card-tags { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+.card-tag { font-size: 10px; padding: 2px 6px; border-radius: 6px; background: var(--card2); color: var(--text2); }
+
+/* Empty */
+.empty { text-align: center; padding: 60px 20px; }
+.empty .icon { font-size: 64px; margin-bottom: 16px; }
+.empty p { color: var(--text2); font-size: 14px; }
+
+/* FAB */
+.fab { position: fixed; bottom: 24px; right: 20px; width: 56px; height: 56px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 28px; cursor: pointer; box-shadow: 0 4px 16px rgba(233,69,96,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.fab:active { transform: scale(0.92); }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 300; display: none; align-items: flex-end; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 600px; max-height: 92vh; overflow-y: auto; padding: 20px; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-header h2 { font-size: 18px; }
+.modal-close { font-size: 22px; cursor: pointer; color: var(--text2); padding: 4px 8px; }
+
+/* Form */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+.form-group input, .form-group textarea { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card2); color: var(--text); font-size: 15px; outline: none; }
+.form-group input:focus, .form-group textarea:focus { border-color: var(--accent); }
+.form-group textarea { resize: vertical; min-height: 60px; }
+
+/* Cat Radio */
+.cat-radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-radio-label { cursor: pointer; }
+.cat-radio-input { display: none; }
+.cat-radio-span { display: inline-block; padding: 9px 14px; border-radius: 18px; border: 1px solid var(--border); background: var(--card2); color: var(--text2); font-size: 13px; transition: all 0.2s; }
+.cat-radio-input:checked + .cat-radio-span { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* Photo area */
+.photo-area { width: 100%; aspect-ratio: 1; border-radius: 14px; border: 2px dashed var(--border); background: var(--card2); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
+.photo-area .icon { font-size: 48px; margin-bottom: 8px; }
+.photo-area .hint { font-size: 13px; color: var(--text2); }
+.photo-area img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo-area.has-photo .icon, .photo-area.has-photo .hint { display: none; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 10px; margin-top: 8px; }
+.btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--card2); color: var(--text2); border: 1px solid var(--border); }
+.btn-danger { background: #c0392b; color: #fff; }
+
+/* Detail */
+.detail-img { width: 100%; max-height: 360px; object-fit: contain; border-radius: 14px; background: var(--card2); margin-bottom: 14px; }
+.detail-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+.detail-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.detail-tag { padding: 4px 10px; border-radius: 10px; background: var(--accent2); color: #fff; font-size: 12px; }
+.detail-note { font-size: 14px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+.detail-date { font-size: 12px; color: var(--text2); margin-top: 12px; opacity: 0.6; }
+
+/* Backup bar */
+.backup-bar { display: flex; gap: 8px; padding: 0 16px 8px; justify-content: flex-end; }
+.backup-btn { padding: 5px 12px; border-radius: 14px; border: 1px solid var(--border); background: var(--card2); color: var(--text2); font-size: 11px; cursor: pointer; }
+
+/* Toast */
+.toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--card); color: var(--text); padding: 12px 24px; border-radius: 12px; font-size: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 400; transition: transform 0.3s ease; border: 1px solid var(--border); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Color dots */
+.color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.2); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>👔 我的衣櫃</h1>
+  <div class="stats" id="stats">
+    <div class="stat"><div class="num" id="totalCount">0</div><div class="label">全部</div></div>
+    <div class="stat"><div class="num" id="topCount">0</div><div class="label">👕 上衣</div></div>
+    <div class="stat"><div class="num" id="bottomCount">0</div><div class="label">👖 褲子</div></div>
+    <div class="stat"><div class="num" id="dressCount">0</div><div class="label">👗 裙子</div></div>
+    <div class="stat"><div class="num" id="outerCount">0</div><div class="label">🧥 外套</div></div>
+    <div class="stat"><div class="num" id="shoeCount">0</div><div class="label">👟 鞋子</div></div>
+    <div class="stat"><div class="num" id="accCount">0</div><div class="label">🎒 配件</div></div>
+  </div>
+  <div class="backup-bar">
+    <button class="backup-btn" id="backupBtn">📥 備份</button>
+    <button class="backup-btn" id="restoreBtn">📤 匯入</button>
+    <input type="file" id="restoreInput" accept=".json" style="display:none">
+  </div>
+</div>
+
+<!-- Search -->
+<div class="search-row">
+  <input type="text" id="searchInput" placeholder="搜尋品牌、顏色、標籤...">
+</div>
+
+<!-- Filters -->
+<div class="filters" id="filters">
+  <div class="filter-btn active" data-cat="all">全部</div>
+  <div class="filter-btn" data-cat="top">👕 上衣</div>
+  <div class="filter-btn" data-cat="bottom">👖 褲子</div>
+  <div class="filter-btn" data-cat="dress">👗 裙子</div>
+  <div class="filter-btn" data-cat="outer">🧥 外套</div>
+  <div class="filter-btn" data-cat="shoe">👟 鞋子</div>
+  <div class="filter-btn" data-cat="acc">🎒 配件</div>
+</div>
+
+<!-- Grid -->
+<div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none;">
+  <div class="icon">👔</div>
+  <p>衣櫃還是空的<br>點右下角 + 開始拍照建檔</p>
+</div>
+
+<!-- FAB -->
+<button class="fab" id="fabBtn">+</button>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="formModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">新增衣服</h2>
+      <span class="modal-close" id="modalClose">✕</span>
+    </div>
+    <form id="clothForm">
+      <input type="hidden" id="editId">
+      <div class="form-group">
+        <label>📷 照片</label>
+        <div class="photo-area" id="photoArea">
+          <div class="icon">📸</div>
+          <div class="hint">點擊拍照或從相簿選擇</div>
+          <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+          <img id="photoPreview" style="display:none;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>📂 分類</label>
+        <div class="cat-radio-group">
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="top" class="cat-radio-input" checked><span class="cat-radio-span">👕 上衣</span></label>
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="bottom" class="cat-radio-input"><span class="cat-radio-span">👖 褲子</span></label>
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="dress" class="cat-radio-input"><span class="cat-radio-span">👗 裙子</span></label>
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="outer" class="cat-radio-input"><span class="cat-radio-span">🧥 外套</span></label>
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="shoe" class="cat-radio-input"><span class="cat-radio-span">👟 鞋子</span></label>
+          <label class="cat-radio-label"><input type="radio" name="catRadio" value="acc" class="cat-radio-input"><span class="cat-radio-span">🎒 配件</span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>🎨 顏色</label>
+        <input type="text" id="clothColor" placeholder="例如：黑色、深藍、米白">
+      </div>
+      <div class="form-group">
+        <label>🏷️ 品牌</label>
+        <input type="text" id="clothBrand" placeholder="例如：UNIQLO、Nike、GU">
+      </div>
+      <div class="form-group">
+        <label>🔖 標籤（逗號分隔）</label>
+        <input type="text" id="clothTags" placeholder="例如：正式、夏天、百搭">
+      </div>
+      <div class="form-group">
+        <label>📝 備註</label>
+        <textarea id="clothNote" placeholder="購買日期、價格、材質等..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="cancelBtn">取消</button>
+        <button type="submit" class="btn btn-primary" id="saveBtn">儲存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>衣服詳情</h2>
+      <span class="modal-close" id="detailClose">✕</span>
+    </div>
+    <div id="detailContent"></div>
+    <div class="btn-row" style="margin-top:16px;">
+      <button class="btn btn-danger" id="deleteBtn">🗑 刪除</button>
+      <button class="btn btn-secondary" id="editBtn">✏️ 編輯</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const DB_NAME = 'WardrobeDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'clothes';
+const CAT_EMOJI = { top: '👕', bottom: '👖', dress: '👗', outer: '🧥', shoe: '👟', acc: '🎒' };
+const CAT_LABEL = { top: '上衣', bottom: '褲子', dress: '裙子', outer: '外套', shoe: '鞋子', acc: '配件' };
+
+let allClothes = [];
+let currentFilter = 'all';
+let currentSearch = '';
+let detailId = null;
+
+// ===== IndexedDB =====
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function getAllClothes() {
+  return new Promise(async (resolve, reject) => {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.getAll();
+    req.onsuccess = e => resolve(e.target.result || []);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function addCloth(cloth) {
+  return new Promise(async (resolve, reject) => {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.add(cloth);
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function updateCloth(cloth) {
+  return new Promise(async (resolve, reject) => {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.put(cloth);
+    req.onsuccess = e => resolve();
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+function deleteCloth(id) {
+  return new Promise(async (resolve, reject) => {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.delete(id);
+    req.onsuccess = e => resolve();
+    req.onerror = e => reject(e.target.error);
+  });
+}
+
+// ===== Helpers =====
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Compress image to base64, max 800px, quality 0.7
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max = 800;
+        let w = img.width, h = img.height;
+        if (w > max || h > max) {
+          if (w > h) { h = Math.round(h * max / w); w = max; }
+          else { w = Math.round(w * max / h); h = max; }
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== Render =====
+function render() {
+  let items = [...allClothes];
+
+  // Filter by category
+  if (currentFilter !== 'all') {
+    items = items.filter(c => c.cat === currentFilter);
+  }
+
+  // Search
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    items = items.filter(c => {
+      const searchable = [c.color, c.brand, c.note, ...(c.tags || [])].join(' ').toLowerCase();
+      return searchable.includes(q);
+    });
+  }
+
+  // Stats
+  document.getElementById('totalCount').textContent = allClothes.length;
+  document.getElementById('topCount').textContent = allClothes.filter(c => c.cat === 'top').length;
+  document.getElementById('bottomCount').textContent = allClothes.filter(c => c.cat === 'bottom').length;
+  document.getElementById('dressCount').textContent = allClothes.filter(c => c.cat === 'dress').length;
+  document.getElementById('outerCount').textContent = allClothes.filter(c => c.cat === 'outer').length;
+  document.getElementById('shoeCount').textContent = allClothes.filter(c => c.cat === 'shoe').length;
+  document.getElementById('accCount').textContent = allClothes.filter(c => c.cat === 'acc').length;
+
+  const grid = document.getElementById('grid');
+  const empty = document.getElementById('empty');
+
+  if (items.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
+
+  grid.innerHTML = items.map(c => {
+    const imgHtml = c.photo
+      ? `<img src="${c.photo}" alt="${escHtml(c.brand || '')}">`
+      : `<span>${CAT_EMOJI[c.cat] || '👕'}</span>`;
+    const tagsHtml = (c.tags || []).slice(0, 3).map(t =>
+      `<span class="card-tag">${escHtml(t)}</span>`
+    ).join('');
+
+    return `
+      <div class="card" data-id="${c.id}">
+        <div class="card-img">${imgHtml}</div>
+        <div class="card-body">
+          <div class="card-name">${escHtml(c.brand || CAT_LABEL[c.cat])}</div>
+          <div class="card-meta">${CAT_EMOJI[c.cat]} ${escHtml(CAT_LABEL[c.cat])} · ${escHtml(c.color || '')}</div>
+          ${tagsHtml ? `<div class="card-tags">${tagsHtml}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => showDetail(parseInt(card.dataset.id)));
+  });
+}
+
+// ===== Detail =====
+function showDetail(id) {
+  const cloth = allClothes.find(c => c.id === id);
+  if (!cloth) return;
+  detailId = id;
+
+  const imgHtml = cloth.photo
+    ? `<img class="detail-img" src="${cloth.photo}" alt="${escHtml(cloth.brand || '')}">`
+    : `<div class="detail-img" style="display:flex;align-items:center;justify-content:center;font-size:80px;background:var(--card2);">${CAT_EMOJI[cloth.cat] || '👕'}</div>`;
+
+  const tagsHtml = (cloth.tags || []).map(t => `<span class="detail-tag">${escHtml(t)}</span>`).join('');
+
+  document.getElementById('detailContent').innerHTML = `
+    ${imgHtml}
+    <div class="detail-name">${escHtml(cloth.brand || CAT_LABEL[cloth.cat])}</div>
+    <div class="detail-meta">
+      <span class="detail-tag">${CAT_EMOJI[cloth.cat]} ${escHtml(CAT_LABEL[cloth.cat])}</span>
+      ${cloth.color ? `<span class="detail-tag" style="background:var(--card2);color:var(--text);">${escHtml(cloth.color)}</span>` : ''}
+      ${tagsHtml}
+    </div>
+    ${cloth.note ? `<div class="detail-note">${escHtml(cloth.note)}</div>` : ''}
+    <div class="detail-date">📅 ${new Date(cloth.created).toLocaleString('zh-TW')}</div>
+  `;
+  document.getElementById('detailModal').classList.add('show');
+}
+
+// ===== Form =====
+let currentPhoto = null;
+
+function openAddForm() {
+  document.getElementById('modalTitle').textContent = '新增衣服';
+  document.getElementById('editId').value = '';
+  document.getElementById('clothForm').reset();
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('photoPreview').src = '';
+  document.getElementById('photoArea').classList.remove('has-photo');
+  currentPhoto = null;
+  // Reset radio
+  document.querySelectorAll('.cat-radio-input').forEach(r => r.checked = false);
+  document.querySelector('.cat-radio-input[value="top"]').checked = true;
+  document.getElementById('formModal').classList.add('show');
+}
+
+function openEditForm(id) {
+  const cloth = allClothes.find(c => c.id === id);
+  if (!cloth) return;
+
+  document.getElementById('detailModal').classList.remove('show');
+  document.getElementById('modalTitle').textContent = '編輯衣服';
+  document.getElementById('editId').value = cloth.id;
+  document.getElementById('clothColor').value = cloth.color || '';
+  document.getElementById('clothBrand').value = cloth.brand || '';
+  document.getElementById('clothTags').value = (cloth.tags || []).join(', ');
+  document.getElementById('clothNote').value = cloth.note || '';
+
+  // Radio
+  document.querySelectorAll('.cat-radio-input').forEach(r => r.checked = false);
+  const radio = document.querySelector(`.cat-radio-input[value="${cloth.cat}"]`);
+  if (radio) radio.checked = true;
+
+  // Photo
+  if (cloth.photo) {
+    document.getElementById('photoPreview').src = cloth.photo;
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('photoArea').classList.add('has-photo');
+    currentPhoto = cloth.photo;
+  } else {
+    document.getElementById('photoPreview').style.display = 'none';
+    document.getElementById('photoArea').classList.remove('has-photo');
+    currentPhoto = null;
+  }
+
+  document.getElementById('formModal').classList.add('show');
+}
+
+// ===== Event Listeners =====
+document.getElementById('fabBtn').addEventListener('click', openAddForm);
+document.getElementById('modalClose').addEventListener('click', () => document.getElementById('formModal').classList.remove('show'));
+document.getElementById('cancelBtn').addEventListener('click', () => document.getElementById('formModal').classList.remove('show'));
+document.getElementById('detailClose').addEventListener('click', () => document.getElementById('detailModal').classList.remove('show'));
+document.getElementById('formModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+document.getElementById('detailModal').addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+document.getElementById('clothForm').addEventListener('click', e => e.stopPropagation());
+
+// Photo
+document.getElementById('photoArea').addEventListener('click', () => document.getElementById('photoInput').click());
+document.getElementById('photoInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    currentPhoto = await compressImage(file);
+    document.getElementById('photoPreview').src = currentPhoto;
+    document.getElementById('photoPreview').style.display = 'block';
+    document.getElementById('photoArea').classList.add('has-photo');
+  } catch (err) {
+    showToast('❌ 圖片處理失敗');
+  }
+});
+
+// Filters
+document.getElementById('filters').addEventListener('click', e => {
+  if (!e.target.classList.contains('filter-btn')) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  currentFilter = e.target.dataset.cat;
+  render();
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', e => {
+  currentSearch = e.target.value.trim();
+  render();
+});
+
+// Save
+document.getElementById('clothForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const editId = document.getElementById('editId').value;
+  const cat = document.querySelector('.cat-radio-input:checked')?.value || 'top';
+  const color = document.getElementById('clothColor').value.trim();
+  const brand = document.getElementById('clothBrand').value.trim();
+  const tags = document.getElementById('clothTags').value.split(',').map(t => t.trim()).filter(Boolean);
+  const note = document.getElementById('clothNote').value.trim();
+
+  try {
+    if (editId) {
+      const cloth = allClothes.find(c => c.id === parseInt(editId));
+      if (cloth) {
+        cloth.cat = cat;
+        cloth.color = color;
+        cloth.brand = brand;
+        cloth.tags = tags;
+        cloth.note = note;
+        if (currentPhoto) cloth.photo = currentPhoto;
+        await updateCloth(cloth);
+        showToast('✅ 已更新');
+      }
+    } else {
+      await addCloth({ cat, color, brand, tags, note, photo: currentPhoto, created: Date.now() });
+      showToast('✅ 已新增');
+    }
+    document.getElementById('formModal').classList.remove('show');
+    allClothes = await getAllClothes();
+    render();
+  } catch (err) {
+    showToast('❌ 儲存失敗');
+  }
+});
+
+// Edit btn
+document.getElementById('editBtn').addEventListener('click', () => {
+  if (detailId) openEditForm(detailId);
+});
+
+// Delete
+document.getElementById('deleteBtn').addEventListener('click', async () => {
+  if (!detailId) return;
+  if (!confirm('確定要刪除這件衣服嗎？')) return;
+  try {
+    await deleteCloth(detailId);
+    document.getElementById('detailModal').classList.remove('show');
+    allClothes = await getAllClothes();
+    render();
+    showToast('🗑 已刪除');
+  } catch (err) {
+    showToast('❌ 刪除失敗');
+  }
+});
+
+// ===== Backup / Restore =====
+async function doBackup() {
+  if (!allClothes.length) { showToast('沒有資料可備份'); return; }
+  const data = JSON.stringify(allClothes, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wardrobe-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`✅ 已備份 ${allClothes.length} 筆資料`);
+}
+
+async function doRestore(file) {
+  try {
+    const text = await file.text();
+    const items = JSON.parse(text);
+    if (!Array.isArray(items) || !items.length) { showToast('❌ 檔案格式錯誤'); return; }
+    if (allClothes.length > 0) {
+      if (!confirm(`目前有 ${allClothes.length} 筆資料，匯入將覆蓋全部 ${items.length} 筆。確定繼續？`)) return;
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    }
+    for (let i = 0; i < items.length; i += 50) {
+      const batch = items.slice(i, i + 50);
+      const db = await openDB();
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      for (const item of batch) {
+        const { id, ...rest } = item;
+        store.add(rest);
+      }
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    }
+    allClothes = await getAllClothes();
+    showToast(`✅ 已匯入 ${items.length} 筆資料`);
+    render();
+  } catch (err) {
+    showToast('❌ 匯入失敗');
+  }
+}
+
+document.getElementById('backupBtn').addEventListener('click', doBackup);
+document.getElementById('restoreBtn').addEventListener('click', () => document.getElementById('restoreInput').click());
+document.getElementById('restoreInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) { doRestore(file); e.target.value = ''; }
+});
+
+// ===== Init =====
+(async () => {
+  allClothes = await getAllClothes();
+  render();
+})();
+</script>
+</body>
+</html>
