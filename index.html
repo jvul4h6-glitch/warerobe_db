@@ -1001,14 +1001,47 @@ function drawOutfit() {
     ctx.drawImage(p.img, -p.w/2, -p.h/2, p.w, p.h);
     ctx.restore();
 
-    // Selection border
+    // Selection border + remove button when hovered or dragging
     if (i === dragging?.placedIndex || hoveredItem === i) {
       const bw = p.w * p.scale, bh = p.h * p.scale;
+      const bx = p.cx - bw/2 - 2, by = p.cy - bh/2 - 2;
+
+      // Dashed border
       ctx.strokeStyle = 'rgba(233,69,96,0.7)';
       ctx.lineWidth = 2;
       ctx.setLineDash([5, 3]);
-      ctx.strokeRect(p.cx - bw/2 - 2, p.cy - bh/2 - 2, bw + 4, bh + 4);
+      ctx.strokeRect(bx, by, bw + 4, bh + 4);
       ctx.setLineDash([]);
+
+      // Remove button (circle with X) at top-right corner
+      const btnR = 14;
+      const btnCX = bx + bw + 4 + 2;  // right edge
+      const btnCY = by + 2;            // top edge
+      p._btnCX = btnCX;
+      p._btnCY = btnCY;
+      p._btnR = btnR;
+
+      // Red circle background
+      ctx.fillStyle = '#e94560';
+      ctx.beginPath();
+      ctx.arc(btnCX, btnCY, btnR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // White X
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      const pad = 5;
+      ctx.beginPath();
+      ctx.moveTo(btnCX - pad, btnCY - pad);
+      ctx.lineTo(btnCX + pad, btnCY + pad);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(btnCX + pad, btnCY - pad);
+      ctx.lineTo(btnCX - pad, btnCY + pad);
+      ctx.stroke();
+    } else {
+      p._btnCX = null;
     }
   });
 
@@ -1060,6 +1093,22 @@ outfitCanvas.addEventListener('pointerdown', e => {
   const idx = hitTest(mx, my);
   if (idx >= 0) {
     const p = placedItems[idx];
+
+    // Check if tapping the remove button
+    if (p._btnCX != null) {
+      const dx = mx - p._btnCX, dy = my - p._btnCY;
+      if (Math.sqrt(dx*dx + dy*dy) <= p._btnR + 4) {
+        // Remove button tapped — remove from placedItems and clear selection
+        const removedSlot = p.slot;
+        placedItems.splice(idx, 1);
+        outfitSelections[removedSlot] = null;
+        hoveredItem = -1;
+        renderOutfitItems();
+        drawOutfit();
+        return;
+      }
+    }
+
     dragging = { placedIndex: idx, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: p.cx, origCY: p.cy };
     placedItems.push(placedItems.splice(idx, 1)[0]);
     dragging.placedIndex = placedItems.length - 1;
