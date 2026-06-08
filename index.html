@@ -123,6 +123,41 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 /* Color dots */
 .color-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 4px; vertical-align: middle; border: 1px solid rgba(255,255,255,0.2); }
+
+/* ===== Outfit Tab ===== */
+.tab-bar { display: flex; padding: 8px 16px 0; gap: 4px; }
+.tab-btn { flex: 1; padding: 10px 0; border-radius: 12px 12px 0 0; border: 1px solid var(--border); border-bottom: none; background: var(--card2); color: var(--text2); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.tab-btn.active { background: var(--card); color: var(--accent); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Outfit page */
+#outfitTab { padding: 12px 16px; }
+.outfit-canvas-wrap { background: var(--card); border-radius: 16px; border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; display: flex; flex-direction: column; align-items: center; }
+#outfitCanvas { width: 100%; max-width: 320px; border-radius: 12px; background: #0a0a15; }
+.outfit-avatar-area { width: 100%; max-width: 320px; margin-bottom: 12px; }
+.outfit-avatar-preview { width: 100%; aspect-ratio: 3/4; border-radius: 14px; border: 2px dashed var(--border); background: var(--card2); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative; }
+.outfit-avatar-preview .icon { font-size: 48px; margin-bottom: 8px; }
+.outfit-avatar-preview .hint { font-size: 13px; color: var(--text2); }
+.outfit-avatar-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.outfit-avatar-preview.has-photo .icon, .outfit-avatar-preview.has-photo .hint { display: none; }
+.outfit-section { margin-bottom: 12px; }
+.outfit-section-title { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.outfit-items { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.outfit-items::-webkit-scrollbar { display: none; }
+.outoutfit-item { flex: 0 0 72px; cursor: pointer; transition: transform 0.15s; }
+.outoutfit-item:active { transform: scale(0.95); }
+.outoutfit-item.selected { outline: 2px solid var(--accent); border-radius: 10px; }
+.outoutfit-item .thumb { width: 72px; height: 72px; border-radius: 10px; background: var(--card2); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.outoutfit-item .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.outoutfit-item .name { font-size: 10px; color: var(--text2); text-align: center; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outfit-selected-items { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.outfit-selected-chip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 10px; background: var(--card2); border: 1px solid var(--border); font-size: 12px; }
+.outfit-selected-chip .chip-emoji { font-size: 16px; }
+.outfit-selected-chip .chip-remove { cursor: pointer; color: var(--accent); font-size: 14px; margin-left: 2px; }
+.outfit-actions { display: flex; gap: 8px; margin-top: 8px; }
+.outfit-actions .btn { flex: 1; }
+.outfit-empty { text-align: center; padding: 20px; color: var(--text2); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -130,6 +165,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 <!-- Header -->
 <div class="header">
   <h1>👔 我的衣櫃</h1>
+  <div class="tab-bar">
+    <div class="tab-btn active" data-tab="wardrobe">👕 衣櫃</div>
+    <div class="tab-btn" data-tab="outfit">👗 穿搭</div>
+  </div>
   <div class="stats" id="stats">
     <div class="stat"><div class="num" id="totalCount">0</div><div class="label">全部</div></div>
     <div class="stat"><div class="num" id="topCount">0</div><div class="label">👕 上衣</div></div>
@@ -145,6 +184,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
     <input type="file" id="restoreInput" accept=".json" style="display:none">
   </div>
 </div>
+
+<!-- Wardrobe Tab -->
+<div class="tab-content active" id="wardrobeTab">
 
 <!-- Search -->
 <div class="search-row">
@@ -168,6 +210,56 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="icon">👔</div>
   <p>衣櫃還是空的<br>點右下角 + 開始拍照建檔</p>
 </div>
+
+</div><!-- end wardrobeTab -->
+
+<!-- Outfit Tab -->
+<div class="tab-content" id="outfitTab">
+  <div class="outfit-canvas-wrap">
+    <div class="outfit-avatar-area">
+      <div class="outfit-avatar-preview" id="avatarPreview">
+        <div class="icon">👤</div>
+        <div class="hint">點擊上傳大頭貼</div>
+        <img id="avatarImg" style="display:none;">
+      </div>
+      <input type="file" id="avatarInput" accept="image/*" capture="user" style="display:none">
+    </div>
+    <canvas id="outfitCanvas" width="320" height="480"></canvas>
+  </div>
+
+  <div class="outfit-selected-items" id="outfitSelected"></div>
+
+  <div class="outfit-section" id="outfitTopSection">
+    <div class="outfit-section-title">👕 上衣</div>
+    <div class="outfit-items" id="outfitTopList"></div>
+  </div>
+  <div class="outfit-section" id="outfitBottomSection">
+    <div class="outfit-section-title">👖 褲子</div>
+    <div class="outfit-items" id="outfitBottomList"></div>
+  </div>
+  <div class="outfit-section" id="outfitDressSection">
+    <div class="outfit-section-title">👗 裙子</div>
+    <div class="outfit-items" id="outfitDressList"></div>
+  </div>
+  <div class="outfit-section" id="outfitOuterSection">
+    <div class="outfit-section-title">🧥 外套</div>
+    <div class="outfit-items" id="outfitOuterList"></div>
+  </div>
+  <div class="outfit-section" id="outfitShoeSection">
+    <div class="outfit-section-title">👟 鞋子</div>
+    <div class="outfit-items" id="outfitShoeList"></div>
+  </div>
+  <div class="outfit-section" id="outfitAccSection">
+    <div class="outfit-section-title">🎒 配件</div>
+    <div class="outfit-items" id="outfitAccList"></div>
+  </div>
+
+  <div class="outfit-actions">
+    <button class="btn btn-secondary" id="outfitClearBtn">🗑 清除穿搭</button>
+    <button class="btn btn-primary" id="outfitSaveBtn">📸 儲存圖片</button>
+  </div>
+  <div class="outfit-empty" id="outfitEmpty">衣櫃沒有衣服，先去衣櫃頁拍照建檔吧！</div>
+</div><!-- end outfitTab -->
 
 <!-- FAB -->
 <button class="fab" id="fabBtn">+</button>
@@ -646,7 +738,307 @@ document.getElementById('restoreInput').addEventListener('change', e => {
 (async () => {
   allClothes = await getAllClothes();
   render();
+  loadAvatar();
+  renderOutfitItems();
 })();
+
+
+// ===== Outfit Tab =====
+let avatarPhoto = null; // base64
+let outfitSelections = { top: null, bottom: null, dress: null, outer: null, shoe: null, acc: null };
+const CAT_SLOTS = ['top', 'bottom', 'dress', 'outer', 'shoe', 'acc'];
+
+// --- Avatar (store in localStorage as data URL) ---
+async function loadAvatar() {
+  try {
+    const data = localStorage.getItem('wardrobe_avatar');
+    if (data) {
+      avatarPhoto = data;
+      const img = document.getElementById('avatarImg');
+      img.src = data;
+      img.style.display = 'block';
+      document.getElementById('avatarPreview').classList.add('has-photo');
+    }
+  } catch(e) {}
+}
+
+async function saveAvatar(base64) {
+  avatarPhoto = base64;
+  try { localStorage.setItem('wardrobe_avatar', base64); } catch(e) {}
+}
+
+document.getElementById('avatarPreview').addEventListener('click', () => document.getElementById('avatarInput').click());
+document.getElementById('avatarInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const compressed = await compressImageRaw(file, 400);
+    await saveAvatar(compressed);
+    const img = document.getElementById('avatarImg');
+    img.src = compressed;
+    img.style.display = 'block';
+    document.getElementById('avatarPreview').classList.add('has-photo');
+    drawOutfit();
+  } catch(err) { showToast('❌ 照片處理失敗'); }
+});
+
+function compressImageRaw(file, maxPx) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxPx || h > maxPx) {
+          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+          else { w = Math.round(w * maxPx / h); h = maxPx; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- Tab switching ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById(tab + 'Tab').classList.add('active');
+    if (tab === 'outfit') {
+      renderOutfitItems();
+      drawOutfit();
+    }
+  });
+});
+
+// --- Outfit item selection ---
+function renderOutfitItems() {
+  const cats = [
+    { key: 'top', listId: 'outfitTopList', sectionId: 'outfitTopSection' },
+    { key: 'bottom', listId: 'outfitBottomList', sectionId: 'outfitBottomSection' },
+    { key: 'dress', listId: 'outfitDressList', sectionId: 'outfitDressSection' },
+    { key: 'outer', listId: 'outfitOuterList', sectionId: 'outfitOuterSection' },
+    { key: 'shoe', listId: 'outfitShoeList', sectionId: 'outfitShoeSection' },
+    { key: 'acc', listId: 'outfitAccList', sectionId: 'outfitAccSection' },
+  ];
+
+  let totalItems = 0;
+  cats.forEach(({ key, listId, sectionId }) => {
+    const items = allClothes.filter(c => c.cat === key);
+    const listEl = document.getElementById(listId);
+    const sectionEl = document.getElementById(sectionId);
+    totalItems += items.length;
+
+    if (items.length === 0) {
+      sectionEl.style.display = 'none';
+      return;
+    }
+    sectionEl.style.display = 'block';
+
+    listEl.innerHTML = items.map(c => {
+      const imgHtml = c.photo
+        ? `<img src="${c.photo}" alt="">`
+        : `<span>${CAT_EMOJI[c.cat] || '👕'}</span>`;
+      const isSelected = outfitSelections[key] && outfitSelections[key].id === c.id;
+      return `
+        <div class="outoutfit-item${isSelected ? ' selected' : ''}" data-id="${c.id}" data-cat="${key}">
+          <div class="thumb">${imgHtml}</div>
+          <div class="name">${escHtml(c.brand || CAT_LABEL[key])}</div>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('.outoutfit-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = parseInt(el.dataset.id);
+        const cat = el.dataset.cat;
+        toggleOutfitItem(cat, id);
+      });
+    });
+  });
+
+  document.getElementById('outfitEmpty').style.display = totalItems === 0 ? 'block' : 'none';
+  renderSelectedChips();
+  drawOutfit();
+}
+
+function toggleOutfitItem(cat, id) {
+  // For dress: exclusive (dress replaces top+bottom)
+  if (cat === 'dress') {
+    if (outfitSelections.dress && outfitSelections.dress.id === id) {
+      outfitSelections.dress = null;
+    } else {
+      outfitSelections.dress = allClothes.find(c => c.id === id) || null;
+      outfitSelections.top = null;
+      outfitSelections.bottom = null;
+    }
+  } else if (cat === 'top' || cat === 'bottom') {
+    if (outfitSelections.dress) outfitSelections.dress = null;
+    if (outfitSelections[cat] && outfitSelections[cat].id === id) {
+      outfitSelections[cat] = null;
+    } else {
+      outfitSelections[cat] = allClothes.find(c => c.id === id) || null;
+    }
+  } else {
+    if (outfitSelections[cat] && outfitSelections[cat].id === id) {
+      outfitSelections[cat] = null;
+    } else {
+      outfitSelections[cat] = allClothes.find(c => c.id === id) || null;
+    }
+  }
+  renderOutfitItems();
+}
+
+function renderSelectedChips() {
+  const container = document.getElementById('outfitSelected');
+  const chips = [];
+  CAT_SLOTS.forEach(slot => {
+    const item = outfitSelections[slot];
+    if (!item) return;
+    chips.push(`
+      <div class="outfit-selected-chip">
+        <span class="chip-emoji">${CAT_EMOJI[slot]}</span>
+        <span>${escHtml(item.brand || CAT_LABEL[slot])}</span>
+        <span class="chip-remove" data-slot="${slot}">✕</span>
+      </div>
+    `);
+  });
+  container.innerHTML = chips.join('');
+  container.querySelectorAll('.chip-remove').forEach(el => {
+    el.addEventListener('click', () => {
+      outfitSelections[el.dataset.slot] = null;
+      renderOutfitItems();
+    });
+  });
+}
+
+// --- Canvas drawing ---
+const CW = 320, CH = 480;
+
+// Slot layout (% of canvas): x, y, w, h
+const SLOT_LAYOUT = {
+  outer:  { x: 0.10, y: 0.22, w: 0.80, h: 0.30 },
+  top:    { x: 0.15, y: 0.22, w: 0.70, h: 0.28 },
+  dress:  { x: 0.12, y: 0.22, w: 0.76, h: 0.55 },
+  bottom: { x: 0.18, y: 0.52, w: 0.64, h: 0.28 },
+  shoe:   { x: 0.20, y: 0.82, w: 0.60, h: 0.14 },
+  acc:    { x: 0.02, y: 0.18, w: 0.22, h: 0.12 },
+};
+
+function drawOutfit() {
+  const canvas = document.getElementById('outfitCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, CW, CH);
+
+  // Background
+  ctx.fillStyle = '#0a0a15';
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Body silhouette (simple)
+  drawSilhouette(ctx);
+
+  // Avatar photo (if exists) - draw as body background
+  if (avatarPhoto) {
+    const avatarImg = new Image();
+    avatarImg.onload = () => {
+      // Draw avatar scaled to fit body area
+      const bw = CW * 0.6, bh = CH * 0.7;
+      const bx = (CW - bw) / 2, by = CH * 0.15;
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(avatarImg, bx, by, bw, bh);
+      ctx.globalAlpha = 1;
+      drawClothes(ctx);
+    };
+    avatarImg.onerror = () => drawClothes(ctx);
+    avatarImg.src = avatarPhoto;
+  } else {
+    drawClothes(ctx);
+  }
+}
+
+function drawSilhouette(ctx) {
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  // Head
+  ctx.beginPath();
+  ctx.arc(CW/2, CH*0.08, 28, 0, Math.PI*2);
+  ctx.stroke();
+  // Body line
+  ctx.beginPath();
+  ctx.moveTo(CW/2, CH*0.08 + 28);
+  ctx.lineTo(CW/2, CH*0.75);
+  ctx.stroke();
+  // Shoulders
+  ctx.beginPath();
+  ctx.moveTo(CW*0.3, CH*0.22);
+  ctx.lineTo(CW*0.7, CH*0.22);
+  ctx.stroke();
+}
+
+function drawClothes(ctx) {
+  // Draw order: shoe, bottom, dress, top, outer, acc
+  const drawOrder = ['shoe', 'bottom', 'dress', 'top', 'outer', 'acc'];
+  drawOrder.forEach(slot => {
+    const item = outfitSelections[slot];
+    if (!item || !item.photo) return;
+    const layout = SLOT_LAYOUT[slot];
+    const x = layout.x * CW, y = layout.y * CH;
+    const w = layout.w * CW, h = layout.h * CH;
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      // Clip to slot area
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 6);
+      ctx.clip();
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+      // Border
+      ctx.strokeStyle = 'rgba(233,69,96,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 6);
+      ctx.stroke();
+    };
+    img.onerror = () => {};
+    img.src = item.photo;
+  });
+}
+
+// --- Clear outfit ---
+document.getElementById('outfitClearBtn').addEventListener('click', () => {
+  CAT_SLOTS.forEach(s => outfitSelections[s] = null);
+  renderOutfitItems();
+});
+
+// --- Save outfit as image ---
+document.getElementById('outfitSaveBtn').addEventListener('click', () => {
+  const canvas = document.getElementById('outfitCanvas');
+  try {
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `outfit-${new Date().toISOString().slice(0,10)}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('✅ 已儲存穿搭圖片');
+  } catch(e) {
+    showToast('❌ 儲存失敗');
+  }
+});
 </script>
 </body>
 </html>
