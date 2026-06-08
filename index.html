@@ -224,7 +224,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
       <input type="file" id="avatarInput" accept="image/*" style="display:none">
     </div>
-    <canvas id="outfitCanvas" width="320" height="480"></canvas>
+    <canvas id="outfitCanvas" width="520" height="780"></canvas>
   </div>
 
   <div class="outfit-selected-items" id="outfitSelected"></div>
@@ -1045,112 +1045,54 @@ function touchDist(e) {
 
 const outfitCanvas = document.getElementById('outfitCanvas');
 
-outfitCanvas.addEventListener('touchstart', e => {
-  e.preventDefault();
+// Use pointer events (works for both touch and mouse)
+outfitCanvas.addEventListener('pointerdown', e => {
   const { mx, my } = canvasCoords(e, outfitCanvas);
   const idx = hitTest(mx, my);
-
-  if (e.touches.length === 2 && idx >= 0) {
-    // Pinch start
-    dragging = null;
-    pinchStart = { dist: touchDist(e), scale: placedItems[idx].scale, idx };
-  } else if (e.touches.length === 1 && idx >= 0) {
-    // Drag start
+  if (idx >= 0) {
     const p = placedItems[idx];
-    dragging = { placedIndex: idx, startMX: mx, startMY: my, origCX: p.cx, origCY: p.cy };
-    // Bring to front
+    dragging = { placedIndex: idx, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: p.cx, origCY: p.cy };
     placedItems.push(placedItems.splice(idx, 1)[0]);
     dragging.placedIndex = placedItems.length - 1;
     hoveredItem = dragging.placedIndex;
+    outfitCanvas.setPointerCapture(e.pointerId);
     drawOutfit();
   }
-}, { passive: false });
+});
 
-outfitCanvas.addEventListener('touchmove', e => {
+outfitCanvas.addEventListener('pointermove', e => {
+  if (!dragging || e.pointerId !== dragging.pointerId) return;
+  const { mx, my } = canvasCoords(e, outfitCanvas);
+  const dx = mx - dragging.startMX;
+  const dy = my - dragging.startMY;
+  const p = placedItems[dragging.placedIndex];
+  if (p) {
+    p.cx = dragging.origCX + dx;
+    p.cy = dragging.origCY + dy;
+    drawOutfit();
+  }
+});
+
+outfitCanvas.addEventListener('pointerup', e => {
+  if (dragging && e.pointerId === dragging.pointerId) {
+    dragging = null;
+    const { mx, my } = canvasCoords(e, outfitCanvas);
+    hoveredItem = hitTest(mx, my);
+    drawOutfit();
+  }
+});
+
+// Pinch zoom via gesture events (iOS Safari)
+outfitCanvas.addEventListener('gesturestart', e => { e.preventDefault(); }, { passive: false });
+outfitCanvas.addEventListener('gesturechange', e => {
   e.preventDefault();
-  const { mx, my } = canvasCoords(e, outfitCanvas);
-
-  if (e.touches.length === 2 && pinchStart) {
-    // Pinch zoom
-    const newDist = touchDist(e);
-    if (newDist > 0 && pinchStart.dist > 0) {
-      const factor = newDist / pinchStart.dist;
-      const p = placedItems[pinchStart.idx];
-      if (p) {
-        p.scale = Math.max(0.2, Math.min(4, pinchStart.scale * factor));
-        drawOutfit();
-      }
-    }
-  } else if (e.touches.length === 1 && dragging) {
-    const dx = mx - dragging.startMX;
-    const dy = my - dragging.startMY;
-    const p = placedItems[dragging.placedIndex];
-    if (p) {
-      p.cx = dragging.origCX + dx;
-      p.cy = dragging.origCY + dy;
-      drawOutfit();
-    }
-  }
-}, { passive: false });
-
-outfitCanvas.addEventListener('touchend', e => {
-  dragging = null;
-  pinchStart = null;
-  const { mx, my } = canvasCoords(e, outfitCanvas);
-  hoveredItem = hitTest(mx, my);
-  drawOutfit();
-});
-
-// Mouse support (desktop)
-let mouseDragging = null;
-outfitCanvas.addEventListener('mousedown', e => {
-  const { mx, my } = canvasCoords(e, outfitCanvas);
-  const idx = hitTest(mx, my);
-  if (idx >= 0) {
-    const p = placedItems[idx];
-    mouseDragging = { placedIndex: idx, startMX: mx, startMY: my, origCX: p.cx, origCY: p.cy };
-    placedItems.push(placedItems.splice(idx, 1)[0]);
-    mouseDragging.placedIndex = placedItems.length - 1;
-    hoveredItem = mouseDragging.placedIndex;
-    drawOutfit();
-  }
-});
-
-outfitCanvas.addEventListener('mousemove', e => {
-  const { mx, my } = canvasCoords(e, outfitCanvas);
-  if (mouseDragging) {
-    const dx = mx - mouseDragging.startMX;
-    const dy = my - mouseDragging.startMY;
-    const p = placedItems[mouseDragging.placedIndex];
-    if (p) {
-      p.cx = mouseDragging.origCX + dx;
-      p.cy = mouseDragging.origCY + dy;
-      drawOutfit();
-    }
-  } else {
-    const newHover = hitTest(mx, my);
-    if (newHover !== hoveredItem) {
-      hoveredItem = newHover;
-      drawOutfit();
-    }
-  }
-});
-
-outfitCanvas.addEventListener('mouseup', () => { mouseDragging = null; });
-outfitCanvas.addEventListener('mouseleave', () => { mouseDragging = null; hoveredItem = -1; drawOutfit(); });
-
-// Wheel zoom (desktop)
-outfitCanvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  const { mx, my } = canvasCoords(e, outfitCanvas);
-  const idx = hitTest(mx, my);
-  if (idx >= 0) {
-    const p = placedItems[idx];
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    p.scale = Math.max(0.2, Math.min(4, p.scale * delta));
+  if (hoveredItem >= 0 && hoveredItem < placedItems.length) {
+    const p = placedItems[hoveredItem];
+    p.scale = Math.max(0.2, Math.min(4, e.scale));
     drawOutfit();
   }
 }, { passive: false });
+outfitCanvas.addEventListener('gestureend', () => {});
 
 // --- Place a clothing item ---
 function placeClothItem(cloth) {
