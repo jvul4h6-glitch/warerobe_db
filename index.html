@@ -1001,7 +1001,7 @@ function drawOutfit() {
     ctx.drawImage(p.img, -p.w/2, -p.h/2, p.w, p.h);
     ctx.restore();
 
-    // Selection border + remove button (bottom-right corner)
+    // Selection border + rotate/scale knob (bottom-right corner)
     if (i === selectedItem) {
       const bw = p.w * p.scale, bh = p.h * p.scale;
       const bx = p.cx - bw/2 - 2, by = p.cy - bh/2 - 2;
@@ -1013,35 +1013,46 @@ function drawOutfit() {
       ctx.strokeRect(bx, by, bw + 4, bh + 4);
       ctx.setLineDash([]);
 
-      // Remove button (circle with ✕) at BOTTOM-right corner
-      const btnR = 16;
-      const btnCX = bx + bw + 4 + 4;   // right edge + a bit
-      const btnCY = by + bh + 4 + 4;   // bottom edge + a bit
-      p._btnCX = btnCX;
-      p._btnCY = btnCY;
-      p._btnR = btnR;
+      // Knob position: bottom-right corner of the item
+      const knobR = 22;
+      const knobCX = bx + bw + 4 + 6;
+      const knobCY = by + bh + 4 + 6;
+      p._knobCX = knobCX;
+      p._knobCY = knobCY;
+      p._knobR = knobR;
 
-      // Red circle
-      ctx.fillStyle = '#e94560';
+      // Outer ring
+      ctx.strokeStyle = 'rgba(233,69,96,0.5)';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(btnCX, btnCY, btnR, 0, Math.PI * 2);
+      ctx.arc(knobCX, knobCY, knobR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Filled circle background
+      ctx.fillStyle = 'rgba(233,69,96,0.85)';
+      ctx.beginPath();
+      ctx.arc(knobCX, knobCY, knobR - 2, 0, Math.PI * 2);
       ctx.fill();
 
-      // White ✕
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      const pad = 5;
+      // Arrow icons: ↻ (CCW = zoom in) on top-left, ↺ (CW = zoom out) on bottom-right
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // CCW arrow (zoom in) — top left area
+      ctx.fillText('↻', knobCX - 7, knobCY - 7);
+      // CW arrow (zoom out) — bottom right area
+      ctx.fillText('↺', knobCX + 7, knobCY + 7);
+
+      // Small dot indicator at current rotation
+      const dotAngle = (p.scale - 0.2) / 3.8 * Math.PI * 2 - Math.PI / 2;
+      const dotR = knobR - 6;
+      ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.moveTo(btnCX - pad, btnCY - pad);
-      ctx.lineTo(btnCX + pad, btnCY + pad);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(btnCX + pad, btnCY - pad);
-      ctx.lineTo(btnCX - pad, btnCY + pad);
-      ctx.stroke();
+      ctx.arc(knobCX + Math.cos(dotAngle) * dotR, knobCY + Math.sin(dotAngle) * dotR, 3, 0, Math.PI * 2);
+      ctx.fill();
     } else {
-      p._btnCX = null;
+      p._knobCX = null;
     }
   });
 
@@ -1088,6 +1099,9 @@ function touchDist(e) {
 
 const outfitCanvas = document.getElementById('outfitCanvas');
 
+// Knob state: { placedIndex, startAngle, startScale, lastAngle, mode: 'knob' }
+let knobMode = null;
+
 // Use pointer events (works for both touch and mouse)
 outfitCanvas.addEventListener('pointerdown', e => {
   const { mx, my } = canvasCoords(e, outfitCanvas);
@@ -1095,17 +1109,28 @@ outfitCanvas.addEventListener('pointerdown', e => {
 
   if (idx >= 0) {
     const p = placedItems[idx];
+    const si = selectedItem >= 0 && selectedItem < placedItems.length ? selectedItem : idx;
 
-    // Check if tapping the remove button (bottom-right ✕)
-    if (p._btnCX != null) {
-      const bdx = mx - p._btnCX, bdy = my - p._btnCY;
-      if (Math.sqrt(bdx*bdx + bdy*bdy) <= p._btnR + 8) {
-        const removedSlot = p.slot;
-        placedItems.splice(idx, 1);
-        outfitSelections[removedSlot] = null;
-        selectedItem = -1;
-        hoveredItem = -1;
-        renderOutfitItems();
+    // Check if tapping the knob (bottom-right circle)
+    if (p._knobCX != null) {
+      const kdx = mx - p._knobCX, kdy = my - p._knobCY;
+      if (Math.sqrt(kdx*kdx + kdy*kdy) <= p._knobR + 10) {
+        // Enter knob mode
+        const sp = placedItems[si];
+        sp._knobCX = p._knobCX;
+        sp._knobCY = p._knobCY;
+        sp._knobR = p._knobR;
+        knobMode = {
+          placedIndex: si,
+          startAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
+          startScale: sp.scale,
+          lastAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
+          startMX: mx,
+          startMY: my,
+          pointerId: e.pointerId,
+        };
+        dragging = null;
+        outfitCanvas.setPointerCapture(e.pointerId);
         drawOutfit();
         return;
       }
@@ -1116,19 +1141,51 @@ outfitCanvas.addEventListener('pointerdown', e => {
     const topIdx = placedItems.length - 1;
     selectedItem = topIdx;
 
+    // If selected item was moved, update selectedItem
+    if (si === idx) selectedItem = topIdx;
+    else if (si > idx) selectedItem = si;
+    else selectedItem = si;
+
     // Start drag
     const fp = placedItems[topIdx];
     dragging = { placedIndex: topIdx, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: fp.cx, origCY: fp.cy };
     outfitCanvas.setPointerCapture(e.pointerId);
     drawOutfit();
   } else {
-    // Tapped empty area — deselect
     selectedItem = -1;
     drawOutfit();
   }
 });
 
 outfitCanvas.addEventListener('pointermove', e => {
+  // Knob mode: adjust scale based on angle change
+  if (knobMode && e.pointerId === knobMode.pointerId) {
+    const p = placedItems[knobMode.placedIndex];
+    if (!p) { knobMode = null; return; }
+    const { mx, my } = canvasCoords(e, outfitCanvas);
+    const angle = Math.atan2(my - p._knobCY, mx - p._knobCX);
+    let delta = angle - knobMode.lastAngle;
+
+    // Normalize delta to [-PI, PI]
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+
+    // CCW (positive delta) = zoom in, CW (negative) = zoom out
+    // Also support horizontal drag: right = zoom in, left = zoom out
+    const hdx = mx - (knobMode.startMX || mx);
+    const hdy = my - (knobMode.startMY || my);
+    const horizontalFactor = hdx / 100; // right = positive = zoom in
+    const angleFactor = delta * 0.5;
+
+    const newScale = Math.max(0.2, Math.min(5, knobMode.startScale + horizontalFactor + angleFactor));
+    p.scale = newScale;
+    knobMode.lastAngle = angle;
+    knobMode.startMX = mx;
+    knobMode.startMY = my;
+    drawOutfit();
+    return;
+  }
+
   if (!dragging || e.pointerId !== dragging.pointerId) return;
   const { mx, my } = canvasCoords(e, outfitCanvas);
   const dx = mx - dragging.startMX;
@@ -1142,6 +1199,10 @@ outfitCanvas.addEventListener('pointermove', e => {
 });
 
 outfitCanvas.addEventListener('pointerup', e => {
+  if (knobMode && e.pointerId === knobMode.pointerId) {
+    knobMode = null;
+    return;
+  }
   if (dragging && e.pointerId === dragging.pointerId) {
     dragging = null;
     const { mx, my } = canvasCoords(e, outfitCanvas);
