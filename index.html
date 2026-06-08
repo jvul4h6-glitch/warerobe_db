@@ -1104,26 +1104,22 @@ let knobMode = null;
 
 // Use pointer events (works for both touch and mouse)
 outfitCanvas.addEventListener('pointerdown', e => {
+  e.preventDefault();
   const { mx, my } = canvasCoords(e, outfitCanvas);
   const idx = hitTest(mx, my);
 
   if (idx >= 0) {
     const p = placedItems[idx];
-    const si = selectedItem >= 0 && selectedItem < placedItems.length ? selectedItem : idx;
 
-    // Check if tapping the knob (bottom-right circle)
-    if (p._knobCX != null) {
+    // If this item is already selected, check if tapping the knob
+    if (idx === selectedItem && p._knobCX != null) {
       const kdx = mx - p._knobCX, kdy = my - p._knobCY;
-      if (Math.sqrt(kdx*kdx + kdy*kdy) <= p._knobR + 10) {
+      if (Math.sqrt(kdx*kdx + kdy*kdy) <= p._knobR + 12) {
         // Enter knob mode
-        const sp = placedItems[si];
-        sp._knobCX = p._knobCX;
-        sp._knobCY = p._knobCY;
-        sp._knobR = p._knobR;
         knobMode = {
-          placedIndex: si,
+          placedIndex: idx,
           startAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
-          startScale: sp.scale,
+          startScale: p.scale,
           lastAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
           startMX: mx,
           startMY: my,
@@ -1136,22 +1132,19 @@ outfitCanvas.addEventListener('pointerdown', e => {
       }
     }
 
-    // Bring to front
-    placedItems.push(placedItems.splice(idx, 1)[0]);
-    const topIdx = placedItems.length - 1;
-    selectedItem = topIdx;
+    // Select this item (bring to front)
+    if (idx !== selectedItem) {
+      placedItems.push(placedItems.splice(idx, 1)[0]);
+      selectedItem = placedItems.length - 1;
+    }
 
-    // If selected item was moved, update selectedItem
-    if (si === idx) selectedItem = topIdx;
-    else if (si > idx) selectedItem = si;
-    else selectedItem = si;
-
-    // Start drag
-    const fp = placedItems[topIdx];
-    dragging = { placedIndex: topIdx, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: fp.cx, origCY: fp.cy };
+    // Start drag from new position
+    const fp = placedItems[selectedItem];
+    dragging = { placedIndex: selectedItem, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: fp.cx, origCY: fp.cy };
     outfitCanvas.setPointerCapture(e.pointerId);
     drawOutfit();
   } else {
+    // Tapped empty area — deselect
     selectedItem = -1;
     drawOutfit();
   }
