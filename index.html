@@ -162,6 +162,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .outfit-actions { display: flex; gap: 8px; margin-top: 8px; }
 .outfit-actions .btn { flex: 1; }
 .outfit-empty { text-align: center; padding: 20px; color: var(--text2); font-size: 13px; }
+.outfit-bg-bar { display: flex; gap: 6px; margin-bottom: 10px; width: 100%; max-width: 520px; }
 </style>
 </head>
 <body>
@@ -227,6 +228,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <img id="avatarImg" style="display:none;">
       </div>
       <input type="file" id="avatarInput" accept="image/*" style="display:none">
+    </div>
+    <div class="outfit-bg-bar">
+      <button class="btn btn-secondary" id="bgUploadBtn" style="flex:1;font-size:12px;padding:6px 10px;">📷 設定底圖</button>
+      <button class="btn btn-secondary" id="bgClearBtn" style="font-size:12px;padding:6px 10px;display:none;">✕ 清除</button>
+      <input type="file" id="bgInput" accept="image/*" style="display:none">
     </div>
     <canvas id="outfitCanvas" width="520" height="780"></canvas>
     <div class="outfit-selected-bar" id="outfitSelectedBar"></div>
@@ -742,12 +748,15 @@ document.getElementById('restoreInput').addEventListener('change', e => {
   allClothes = await getAllClothes();
   render();
   loadAvatar();
+  loadBgPhoto();
   renderOutfitItems();
 })();
 
 
 // ===== Outfit Tab =====
 let avatarPhoto = null; // base64
+let bgPhoto = null; // base64 for canvas background reference image
+let bgImgCached = null;
 let outfitSelections = { top: null, bottom: null, dress: null, outer: null, shoe: null, acc: null };
 const CAT_SLOTS = ['top', 'bottom', 'dress', 'outer', 'shoe', 'acc'];
 
@@ -783,6 +792,54 @@ document.getElementById('avatarInput').addEventListener('change', async e => {
     document.getElementById('avatarPreview').classList.add('has-photo');
     drawOutfit();
   } catch(err) { showToast('❌ 照片處理失敗'); }
+});
+
+// --- Background reference image (base, bottom-layer) ---
+async function loadBgPhoto() {
+  try {
+    const data = localStorage.getItem('wardrobe_bg');
+    if (data) {
+      bgPhoto = data;
+      bgImgCached = new Image();
+      bgImgCached.src = data;
+      await new Promise(r => { bgImgCached.onload = r; bgImgCached.onerror = r; });
+      document.getElementById('bgClearBtn').style.display = '';
+      drawOutfit();
+    }
+  } catch(e) {}
+}
+
+async function saveBgPhoto(base64) {
+  bgPhoto = base64;
+  bgImgCached = new Image();
+  bgImgCached.src = base64;
+  await new Promise(r => { bgImgCached.onload = r; bgImgCached.onerror = r; });
+  try { localStorage.setItem('wardrobe_bg', base64); } catch(e) {}
+  drawOutfit();
+}
+
+function clearBgPhoto() {
+  bgPhoto = null;
+  bgImgCached = null;
+  try { localStorage.removeItem('wardrobe_bg'); } catch(e) {}
+  document.getElementById('bgClearBtn').style.display = 'none';
+  drawOutfit();
+  showToast('🗑 底圖已清除');
+}
+
+// Background upload button
+document.getElementById('bgUploadBtn').addEventListener('click', () => document.getElementById('bgInput').click());
+document.getElementById('bgClearBtn').addEventListener('click', clearBgPhoto);
+document.getElementById('bgInput').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const compressed = await compressImageRaw(file, 800);
+    await saveBgPhoto(compressed);
+    document.getElementById('bgClearBtn').style.display = '';
+    showToast('✅ 底圖已設定');
+  } catch(err) { showToast('❌ 照片處理失敗'); }
+  e.target.value = '';
 });
 
 function compressImageRaw(file, maxPx) {
@@ -957,6 +1014,28 @@ function drawOutfit() {
   // Background
   ctx.fillStyle = '#0a0a15';
   ctx.fillRect(0, 0, CW, CH);
+
+  // Reference base image (user-uploaded background for comparison)
+  if (bgImgCached && bgImgCached.complete && bgImgCached.naturalWidth > 0) {
+    // Cover-fit the background image to canvas
+    const imgRatio = bgImgCached.width / bgImgCached.height;
+    const canvasRatio = CW / CH;
+    let drawW, drawH, drawX, drawY;
+    if (imgRatio > canvasRatio) {
+      drawH = CH;
+      drawW = CH * imgRatio;
+      drawX = (CW - drawW) / 2;
+      drawY = 0;
+    } else {
+      drawW = CW;
+      drawH = CW / imgRatio;
+      drawX = 0;
+      drawY = (CH - drawH) / 2;
+    }
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(bgImgCached, drawX, drawY, drawW, drawH);
+    ctx.globalAlpha = 1.0;
+  }
 
   // Avatar head (top portion of photo, circular clip)
   const avatarImg = getAvatarImg();
