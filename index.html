@@ -1013,10 +1013,10 @@ function drawOutfit() {
       ctx.strokeRect(bx, by, bw + 4, bh + 4);
       ctx.setLineDash([]);
 
-      // --- Remove ✕ button (top-right corner) ---
+      // --- Remove ✕ button (just outside top-right corner) ---
       const xR = 14;
-      const xCX = bx + bw + 4 + 4;
-      const xCY = by + 4;
+      const xCX = p.cx + bw/2 + 8;
+      const xCY = p.cy - bh/2 - 8;
       p._xCX = xCX;
       p._xCY = xCY;
       p._xR = xR;
@@ -1028,32 +1028,32 @@ function drawOutfit() {
       ctx.beginPath(); ctx.moveTo(xCX-pd, xCY-pd); ctx.lineTo(xCX+pd, xCY+pd); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(xCX+pd, xCY-pd); ctx.lineTo(xCX-pd, xCY+pd); ctx.stroke();
 
-      // --- Scale knob (bottom-right corner) ---
-      const knobR = 22;
-      const knobCX = bx + bw + 4 + 6;
-      const knobCY = by + bh + 4 + 6;
+      // --- Scale knob (just outside bottom-right corner) ---
+      const knobR = 24;
+      const knobCX = p.cx + bw/2 + 10;
+      const knobCY = p.cy + bh/2 + 10;
       p._knobCX = knobCX;
       p._knobCY = knobCY;
       p._knobR = knobR;
 
-      ctx.strokeStyle = 'rgba(233,69,96,0.5)'; ctx.lineWidth = 2;
+      // Knob outer ring
+      ctx.strokeStyle = 'rgba(233,69,96,0.4)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(knobCX, knobCY, knobR, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(233,69,96,0.85)';
+      // Knob fill
+      ctx.fillStyle = 'rgba(233,69,96,0.8)';
       ctx.beginPath(); ctx.arc(knobCX, knobCY, knobR - 2, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px -apple-system, sans-serif';
+      // Rotation indicator line
+      const rotAngle = p._knobAngle || 0;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(knobCX, knobCY);
+      ctx.lineTo(knobCX + Math.cos(rotAngle) * (knobR - 5), knobCY + Math.sin(rotAngle) * (knobR - 5));
+      ctx.stroke();
+      // + / - labels
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 9px -apple-system, sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('+', knobCX - 7, knobCY - 7);
-      ctx.fillText('-', knobCX + 7, knobCY + 7);
-
-      // Dot indicator
-      const dotAngle = (p.scale - 0.2) / 3.8 * Math.PI * 2 - Math.PI / 2;
-      const dotR = knobR - 6;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(knobCX + Math.cos(dotAngle)*dotR, knobCY + Math.sin(dotAngle)*dotR, 3, 0, Math.PI*2); ctx.fill();
-    } else {
-      p._knobCX = null;
-      p._xCX = null;
-    }
+      ctx.fillText('+', knobCX - 8, knobCY - 8);
+      ctx.fillText('-', knobCX + 8, knobCY + 8);
   });
 
   // Instruction hint
@@ -1163,23 +1163,27 @@ outfitCanvas.addEventListener('pointerdown', e => {
 });
 
 outfitCanvas.addEventListener('pointermove', e => {
-  // Knob mode: adjust scale based on angle change
+  // Knob mode: horizontal drag + rotation
   if (knobMode && e.pointerId === knobMode.pointerId) {
     const p = placedItems[knobMode.placedIndex];
     if (!p) { knobMode = null; return; }
     const { mx, my } = canvasCoords(e, outfitCanvas);
 
-    // Horizontal drag: right = zoom in (+), left = zoom out (-)
+    // Horizontal drag: right = zoom in, left = zoom out
     const hdx = mx - knobMode.lastMX;
-    // Angular: CCW (positive) = zoom in, CW (negative) = zoom out
+    // Rotation angle change
     const angle = Math.atan2(my - p._knobCY, mx - p._knobCX);
     let delta = angle - knobMode.lastAngle;
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
 
-    // Combine: horizontal is primary, angular is secondary
-    const scaleDelta = hdx * 0.008 + delta * 0.3;
+    // Scale from horizontal drag (primary) + rotation (secondary)
+    // Right drag = zoom in (+), CCW rotation = zoom in (+)
+    const scaleDelta = hdx * 0.008 + delta * 0.4;
     p.scale = Math.max(0.2, Math.min(5, p.scale + scaleDelta));
+
+    // Update knob visual rotation angle (accumulate)
+    p._knobAngle = (p._knobAngle || 0) + delta;
 
     knobMode.lastMX = mx;
     knobMode.lastAngle = angle;
