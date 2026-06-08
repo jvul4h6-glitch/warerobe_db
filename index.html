@@ -1001,7 +1001,7 @@ function drawOutfit() {
     ctx.drawImage(p.img, -p.w/2, -p.h/2, p.w, p.h);
     ctx.restore();
 
-    // Selection border + rotate/scale knob (bottom-right corner)
+    // Selection border + buttons when selected
     if (i === selectedItem) {
       const bw = p.w * p.scale, bh = p.h * p.scale;
       const bx = p.cx - bw/2 - 2, by = p.cy - bh/2 - 2;
@@ -1013,7 +1013,22 @@ function drawOutfit() {
       ctx.strokeRect(bx, by, bw + 4, bh + 4);
       ctx.setLineDash([]);
 
-      // Knob position: bottom-right corner of the item
+      // --- Remove ✕ button (top-right corner) ---
+      const xR = 14;
+      const xCX = bx + bw + 4 + 4;
+      const xCY = by + 4;
+      p._xCX = xCX;
+      p._xCY = xCY;
+      p._xR = xR;
+
+      ctx.fillStyle = '#e94560';
+      ctx.beginPath(); ctx.arc(xCX, xCY, xR, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      const pd = 4;
+      ctx.beginPath(); ctx.moveTo(xCX-pd, xCY-pd); ctx.lineTo(xCX+pd, xCY+pd); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xCX+pd, xCY-pd); ctx.lineTo(xCX-pd, xCY+pd); ctx.stroke();
+
+      // --- Scale knob (bottom-right corner) ---
       const knobR = 22;
       const knobCX = bx + bw + 4 + 6;
       const knobCY = by + bh + 4 + 6;
@@ -1021,38 +1036,23 @@ function drawOutfit() {
       p._knobCY = knobCY;
       p._knobR = knobR;
 
-      // Outer ring
-      ctx.strokeStyle = 'rgba(233,69,96,0.5)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(knobCX, knobCY, knobR, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Filled circle background
+      ctx.strokeStyle = 'rgba(233,69,96,0.5)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(knobCX, knobCY, knobR, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(233,69,96,0.85)';
-      ctx.beginPath();
-      ctx.arc(knobCX, knobCY, knobR - 2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(knobCX, knobCY, knobR - 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 10px -apple-system, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+', knobCX - 7, knobCY - 7);
+      ctx.fillText('-', knobCX + 7, knobCY + 7);
 
-      // Arrow icons: ↻ (CCW = zoom in) on top-left, ↺ (CW = zoom out) on bottom-right
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px -apple-system, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      // CCW arrow (zoom in) — top left area
-      ctx.fillText('↻', knobCX - 7, knobCY - 7);
-      // CW arrow (zoom out) — bottom right area
-      ctx.fillText('↺', knobCX + 7, knobCY + 7);
-
-      // Small dot indicator at current rotation
+      // Dot indicator
       const dotAngle = (p.scale - 0.2) / 3.8 * Math.PI * 2 - Math.PI / 2;
       const dotR = knobR - 6;
       ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.arc(knobCX + Math.cos(dotAngle) * dotR, knobCY + Math.sin(dotAngle) * dotR, 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(knobCX + Math.cos(dotAngle)*dotR, knobCY + Math.sin(dotAngle)*dotR, 3, 0, Math.PI*2); ctx.fill();
     } else {
       p._knobCX = null;
+      p._xCX = null;
     }
   });
 
@@ -1111,40 +1111,52 @@ outfitCanvas.addEventListener('pointerdown', e => {
   if (idx >= 0) {
     const p = placedItems[idx];
 
-    // If this item is already selected, check if tapping the knob
-    if (idx === selectedItem && p._knobCX != null) {
-      const kdx = mx - p._knobCX, kdy = my - p._knobCY;
-      if (Math.sqrt(kdx*kdx + kdy*kdy) <= p._knobR + 12) {
-        // Enter knob mode
-        knobMode = {
-          placedIndex: idx,
-          startAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
-          startScale: p.scale,
-          lastAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
-          startMX: mx,
-          startMY: my,
-          pointerId: e.pointerId,
-        };
-        dragging = null;
-        outfitCanvas.setPointerCapture(e.pointerId);
-        drawOutfit();
-        return;
+    // If already selected, check button hits first
+    if (idx === selectedItem) {
+      // Check ✕ button (top-right)
+      if (p._xCX != null) {
+        const dx = mx - p._xCX, dy = my - p._xCY;
+        if (Math.sqrt(dx*dx + dy*dy) <= p._xR + 10) {
+          // Remove this item
+          const removedSlot = p.slot;
+          placedItems.splice(idx, 1);
+          outfitSelections[removedSlot] = null;
+          selectedItem = -1;
+          renderOutfitItems();
+          drawOutfit();
+          return;
+        }
+      }
+      // Check knob (bottom-right)
+      if (p._knobCX != null) {
+        const dx = mx - p._knobCX, dy = my - p._knobCY;
+        if (Math.sqrt(dx*dx + dy*dy) <= p._knobR + 12) {
+          knobMode = {
+            placedIndex: idx,
+            startScale: p.scale,
+            lastAngle: Math.atan2(my - p._knobCY, mx - p._knobCX),
+            lastMX: mx,
+            lastMY: my,
+            pointerId: e.pointerId,
+          };
+          dragging = null;
+          outfitCanvas.setPointerCapture(e.pointerId);
+          drawOutfit();
+          return;
+        }
       }
     }
 
     // Select this item (bring to front)
-    if (idx !== selectedItem) {
-      placedItems.push(placedItems.splice(idx, 1)[0]);
-      selectedItem = placedItems.length - 1;
-    }
+    placedItems.push(placedItems.splice(idx, 1)[0]);
+    selectedItem = placedItems.length - 1;
 
-    // Start drag from new position
+    // Start drag
     const fp = placedItems[selectedItem];
     dragging = { placedIndex: selectedItem, pointerId: e.pointerId, startMX: mx, startMY: my, origCX: fp.cx, origCY: fp.cy };
     outfitCanvas.setPointerCapture(e.pointerId);
     drawOutfit();
   } else {
-    // Tapped empty area — deselect
     selectedItem = -1;
     drawOutfit();
   }
@@ -1156,25 +1168,21 @@ outfitCanvas.addEventListener('pointermove', e => {
     const p = placedItems[knobMode.placedIndex];
     if (!p) { knobMode = null; return; }
     const { mx, my } = canvasCoords(e, outfitCanvas);
+
+    // Horizontal drag: right = zoom in (+), left = zoom out (-)
+    const hdx = mx - knobMode.lastMX;
+    // Angular: CCW (positive) = zoom in, CW (negative) = zoom out
     const angle = Math.atan2(my - p._knobCY, mx - p._knobCX);
     let delta = angle - knobMode.lastAngle;
-
-    // Normalize delta to [-PI, PI]
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
 
-    // CCW (positive delta) = zoom in, CW (negative) = zoom out
-    // Also support horizontal drag: right = zoom in, left = zoom out
-    const hdx = mx - (knobMode.startMX || mx);
-    const hdy = my - (knobMode.startMY || my);
-    const horizontalFactor = hdx / 100; // right = positive = zoom in
-    const angleFactor = delta * 0.5;
+    // Combine: horizontal is primary, angular is secondary
+    const scaleDelta = hdx * 0.008 + delta * 0.3;
+    p.scale = Math.max(0.2, Math.min(5, p.scale + scaleDelta));
 
-    const newScale = Math.max(0.2, Math.min(5, knobMode.startScale + horizontalFactor + angleFactor));
-    p.scale = newScale;
+    knobMode.lastMX = mx;
     knobMode.lastAngle = angle;
-    knobMode.startMX = mx;
-    knobMode.startMY = my;
     drawOutfit();
     return;
   }
