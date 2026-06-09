@@ -1312,20 +1312,37 @@ outfitCanvas.addEventListener('gesturechange', e => {
 }, { passive: false });
 outfitCanvas.addEventListener('gestureend', () => {});
 
-// --- Place a clothing item ---
+// --- Place a clothing item at a slot-appropriate position ---
 function placeClothItem(cloth) {
   if (!cloth.photo) return;
   const img = new Image();
   img.onload = () => {
-    // Default size: 180px wide, maintain aspect
     const defW = 180;
     const defH = (img.height / img.width) * defW;
+
+    // Slot-based default positions (cx, cy as fraction of canvas)
+    const slotPos = {
+      top:    { cx: 0.50, cy: 0.30 },
+      bottom: { cx: 0.50, cy: 0.65 },
+      dress:  { cx: 0.50, cy: 0.45 },
+      outer:  { cx: 0.50, cy: 0.28 },
+      shoe:   { cx: 0.50, cy: 0.88 },
+      acc:    { cx: 0.50, cy: 0.12 },
+    };
+
+    const pos = slotPos[cloth.cat] || { cx: 0.5, cy: 0.45 };
+
+    // Offset each placed item slightly so same-slot items don't perfectly overlap
+    const sameSlotCount = placedItems.filter(p => p.slot === cloth.cat).length;
+    const jitterX = (sameSlotCount % 3 - 1) * 15;
+    const jitterY = (sameSlotCount % 3 - 1) * 10;
+
     placedItems.push({
       slot: cloth.cat,
       cloth: cloth,
       img: img,
-      cx: CW / 2,
-      cy: CH * 0.45,
+      cx: CW * pos.cx + jitterX,
+      cy: CH * pos.cy + jitterY,
       w: defW,
       h: defH,
       scale: 1,
