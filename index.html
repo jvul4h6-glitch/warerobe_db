@@ -265,6 +265,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
   <div class="outfit-actions">
     <button class="btn btn-secondary" id="outfitClearBtn">🗑 清除穿搭</button>
+    <button class="btn btn-primary" id="randomOutfitBtn">🎲 隨機穿搭</button>
     <button class="btn btn-primary" id="outfitSaveBtn">📸 儲存圖片</button>
   </div>
   <div class="outfit-empty" id="outfitEmpty">衣櫃沒有衣服，先去衣櫃頁拍照建檔吧！</div>
@@ -1375,6 +1376,48 @@ function removePlacedBySlot(slot) {
   placedItems = placedItems.filter(p => p.slot !== slot);
   drawOutfit();
 }
+
+// --- Random outfit ---
+document.getElementById('randomOutfitBtn').addEventListener('click', () => {
+  const tops = allClothes.filter(c => c.cat === 'top');
+  const bottoms = allClothes.filter(c => c.cat === 'bottom');
+  const dresses = allClothes.filter(c => c.cat === 'dress');
+
+  // Clear current selections first
+  CAT_SLOTS.forEach(s => {
+    outfitSelections[s] = null;
+  });
+  placedItems = [];
+
+  // Decide: dress OR top+bottom
+  const useDress = dresses.length > 0 && tops.length === 0 && bottoms.length === 0;
+  if (useDress) {
+    const pick = dresses[Math.floor(Math.random() * dresses.length)];
+    outfitSelections.dress = pick;
+    placeClothItem(pick);
+  } else {
+    if (tops.length > 0) {
+      const pick = tops[Math.floor(Math.random() * tops.length)];
+      outfitSelections.top = pick;
+      placeClothItem(pick);
+    }
+    if (bottoms.length > 0) {
+      const pick = bottoms[Math.floor(Math.random() * bottoms.length)];
+      outfitSelections.bottom = pick;
+      placeClothItem(pick);
+    }
+  }
+
+  if (tops.length === 0 && bottoms.length === 0 && dresses.length === 0) {
+    showToast('👕 衣櫃沒有上衣、褲子或裙子喔');
+    renderOutfitItems();
+    return;
+  }
+
+  renderOutfitItems();
+  drawOutfit();
+  showToast('🎲 隨機穿搭完成！');
+});
 
 // --- Clear outfit ---
 document.getElementById('outfitClearBtn').addEventListener('click', () => {
