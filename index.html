@@ -185,7 +185,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
   <div class="backup-bar">
     <button class="backup-btn" id="backupBtn">📥 備份</button>
-    <button class="backup-btn" id="restoreBtn">📤 匯入</button>
+    <label class="backup-btn" id="restoreBtn" for="restoreInput" style="display:inline-block; line-height:30px; text-align:center;">📤 匯入</label>
     <input type="file" id="restoreInput" accept=".json" style="display:none">
   </div>
 </div>
@@ -692,20 +692,34 @@ document.getElementById('deleteBtn').addEventListener('click', async () => {
 
 // ===== Backup / Restore =====
 async function doBackup() {
-  if (!allClothes.length) { showToast('沒有資料可備份'); return; }
+  if (!allClothes.length) { showToast("沒有資料可備份"); return; }
   const data = JSON.stringify(allClothes, null, 2);
-  const blob = new Blob([data], { type: 'application/json' });
+  const filename = `wardrobe-backup-${new Date().toISOString().slice(0,10)}.json`;
+  const file = new File([data], filename, { type: "application/json" });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: "我的衣櫃備份"
+      });
+      showToast("✅ 備份已建立");
+      return;
+    } catch (e) {
+      console.log("Share canceled", e);
+    }
+  }
+  const blob = new Blob([data], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
-  a.download = `wardrobe-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast(`✅ 已備份 ${allClothes.length} 筆資料`);
 }
-
 async function doRestore(file) {
   try {
     const text = await file.text();
@@ -738,7 +752,7 @@ async function doRestore(file) {
 }
 
 document.getElementById('backupBtn').addEventListener('click', doBackup);
-document.getElementById('restoreBtn').addEventListener('click', () => document.getElementById('restoreInput').click());
+// Label will automatically trigger file input
 document.getElementById('restoreInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (file) { doRestore(file); e.target.value = ''; }
